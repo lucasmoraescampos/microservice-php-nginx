@@ -1,0 +1,81 @@
+version: '3'
+services:
+
+  webserver:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./www/company/src/:/var/www/company/
+      - ./www/user/src/:/var/www/user/
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/sites/:/etc/nginx/conf.d/
+      - ./docker/nginx/ssl/:/etc/ssl/
+    networks:
+      - app-network
+
+  company:
+    build:
+      context: ./www/company
+      dockerfile: Dockerfile
+    image: digitalocean.com/php
+    container_name: company
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: company
+      SERVICE_TAGS: dev
+    working_dir: /var/www/company
+    volumes:
+      - ./www/company/src/:/var/www/company/
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  user:
+    build:
+      context: www/user
+      dockerfile: Dockerfile
+    image: digitalocean.com/php
+    container_name: user
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: user
+      SERVICE_TAGS: dev
+    working_dir: /var/www/user
+    volumes:
+      - ./www/user/src/:/var/www/user/
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  db:
+    image: mysql:8.0
+    container_name: db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: user_db
+      MYSQL_ROOT_PASSWORD: root
+      SERVICE_NAME: mysql
+      SERVICE_TAGS: dev
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
